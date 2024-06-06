@@ -1,0 +1,54 @@
+- hosts: terraform-ansible
+  tasks:
+  - name: Instalando o python3, virtualenv, setuptools e venv
+    apt:
+      pkg:
+      - python3
+      - virtualenv
+      - python3-setuptools
+      - python3-venv
+      update_cache: yes
+    become: yes
+
+  - name: Git Clone
+    ansible.builtin.git:
+      repo: https://github.com/patyfil/tutorial-django.git
+      dest: /home/ubuntu/tutorial-django
+      version: main
+      force: yes
+
+  - name: Criar virtualenv
+    command: python3 -m venv /home/ubuntu/tutorial-django/venv
+    args:
+      creates: /home/ubuntu/tutorial-django/venv/bin/activate
+
+  - name: Atualizar pip no virtualenv
+    command: /home/ubuntu/tutorial-django/venv/bin/pip install --upgrade pip
+
+  - name: Instalar setuptools no virtualenv
+    command: /home/ubuntu/tutorial-django/venv/bin/pip install setuptools
+
+  - name: Instalando dependencias com pip
+    pip:
+      virtualenv: /home/ubuntu/tutorial-django/venv
+      requirements: /home/ubuntu/tutorial-django/requirements.txt
+
+  - name: Alterando o hosts do settings
+    lineinfile:
+      path: /home/ubuntu/tutorial-django/setup/settings.py
+      regexp: '^ALLOWED_HOSTS ='
+      line: 'ALLOWED_HOSTS = ["*"]'
+
+  - name: Configurando o banco de dados
+    shell: |
+      . /home/ubuntu/tutorial-django/venv/bin/activate
+      python /home/ubuntu/tutorial-django/manage.py migrate
+    args:
+      executable: /bin/bash
+
+  - name: Iniciando o servidor
+    shell: |
+      . /home/ubuntu/tutorial-django/venv/bin/activate
+      nohup python /home/ubuntu/tutorial-django/manage.py runserver 0.0.0.0:8000 &
+    args:
+      executable: /bin/bash
